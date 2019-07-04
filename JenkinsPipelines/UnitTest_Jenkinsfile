@@ -25,7 +25,7 @@ pipeline {
                 sh "npm install"         
             }
         }
-        stage('Run unit test') {
+        stage('Run unit tests') {
             steps {
                 sh "fastlane tests"
             }
