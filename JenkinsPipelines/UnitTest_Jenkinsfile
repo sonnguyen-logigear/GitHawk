@@ -33,12 +33,10 @@ pipeline {
     }
     post('Tear down') {
         always {        
+            junit 'fastlane/report.xml'
             emailext body: '${DEFAULT_CONTENT}',
             recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
             subject: '${DEFAULT_SUBJECT}'
-        }
-        always {
-            junit 'fastlane/report.xml'
         }
         success {
             setBuildStatus("Build succeeded", "SUCCESS")
