@@ -3,8 +3,8 @@
 void setBuildStatus(String message, String state) {
   step([
       $class: "GitHubCommitStatusSetter",
-      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/thanhlelgg/brain-and-brawn"],
-      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/build-unit-tests"],
+      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/sonnguyen-logigear/GitHawk"],
+      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/run-unit-tests"],
       errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
       statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
   ]);
@@ -18,6 +18,7 @@ pipeline {
     }
     environment {
         LC_ALL = "en_US.UTF-8"
+        TEST_OUTPUT = "fastlane/test_output/"
     }
     stages {
         stage('Setup project') {
@@ -32,15 +33,29 @@ pipeline {
         }
         stage('Run unit tests') {
             steps {
+                sh "rm -rf ${env.TEST_OUTPUT}"
                 catchError {
                     sh "fastlane tests"
-                }         
+                }
+                sh "mv ${env.TEST_OUTPUT}/report.junit ${env.TEST_OUTPUT}/report.xml"
+            }
+        }
+        stage('Generate reports') {
+            steps {
+                script {
+                    allure([
+                        includeProperties: false,
+                        jdk: '',
+                        properties: [],
+                        reportBuildPolicy: 'ALWAYS',
+                        results: [[path: "${env.TEST_OUTPUT}"]]
+                    ])
+                }
             }
         }
     }
     post('Tear down') {
         always {        
-            junit 'fastlane/report.xml'
             emailext body: '${DEFAULT_CONTENT}',
             recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
             subject: '${DEFAULT_SUBJECT}'
