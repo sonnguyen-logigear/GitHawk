@@ -22,6 +22,9 @@ pipeline {
         TESTCASES_FOLDER = "./src/tests/freetime/testcases/"
         APPIUM_TESTS_FOLDER = "appium_tests"
         ALLURE_REPORT_FOLDER = "allure-results"
+        withCredentials([string(credentialsId: 'test_github_token', variable: 'TOKEN')]) {
+            PERSONAL_TOKEN = $TOKEN
+        }
     }
     stages {
         stage('Setup project') {
