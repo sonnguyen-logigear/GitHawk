@@ -25,6 +25,7 @@ pipeline {
         stage('Build and deploy Application') {
             steps {
                 catchError {
+                    // MAC_PASSWORD environment variable should be set on Node, link to descrypted credentials 
                     withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
                         sh "security unlock-keychain -p ${mac_password} login.keychain-db"
                     }
