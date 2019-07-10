@@ -42,7 +42,7 @@ pipeline {
                 sh "mv ${env.TEST_OUTPUT}/report.junit ${env.TEST_OUTPUT}/report.xml"
             }
         }
-        stage('Generate reports') {
+        stage('Generate Allure reports') {
             steps {
                 script {
                     allure([
