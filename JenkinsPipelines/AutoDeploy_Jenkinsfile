@@ -6,6 +6,10 @@ pipeline {
             label 'MacOSX'
         }
     }
+    options { 
+        timestamps()
+        timeout(time: 2, unit: 'HOURS') 
+    }
     environment {
         LC_ALL = "en_US.UTF-8"
         LANG = "en_US.UTF-8"
@@ -24,6 +28,9 @@ pipeline {
         }
         stage('Build and deploy Application') {
             steps {
+                when {
+                    expression { currentBuild.result != 'FAILURE'}
+                }
                 catchError {
                     withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
                         sh "security unlock-keychain -p ${mac_password} login.keychain-db"
@@ -60,7 +67,7 @@ pipeline {
         }
         failure {
             slackSend(channel: '#auto-deploy', color: 'danger', 
-                        message: "Failed to deploy app. Result is at: ${env.BUILD_URL}")
+                        message: "Failed to deploy app. <${env.BUILD_URL}|More details>")
         }
     }
 }

@@ -6,6 +6,10 @@ pipeline {
             label 'MacOSX'
         }
     }
+    options { 
+        timestamps()
+        timeout(time: 7, unit: 'HOURS') 
+    }
     triggers {
         cron('H 19 * * *')
     }
@@ -29,6 +33,9 @@ pipeline {
         }
         stage('Build testing app') {
             steps {
+                when {
+                    expression { currentBuild.result != 'FAILURE'}
+                }
                 catchError {
                     sh 'xcodebuild clean build -workspace Freetime.xcworkspace -scheme "Freetime-AppCenter" \
                         -configuration Debug -allowProvisioningUpdates CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
@@ -42,6 +49,9 @@ pipeline {
         }
         stage('Run appium tests') {
             steps {
+                when {
+                    expression { currentBuild.result != 'FAILURE'}
+                }
                 catchError {
                     dir("${env.APPIUM_TESTS_FOLDER}") {
                         git url: 'git@github.com:sonnguyen-logigear/mwd-githawk-automation-python.git'
@@ -52,17 +62,21 @@ pipeline {
                                 env.LOG = sh(returnStdout: true, 
                                              script: "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m stress_test ${TESTCASES_FOLDER}")
                             }
+                            sh 'killall -KILL node'
+                            sh 'killall "Simulator"'
                             env.SUMMARY = sh(returnStdout: true, 
                                           script: 'echo $LOG | grep -oiE "===[a-z1-9 \\.,]+===" | tail -1')
-                            slackSend(channel: '#auto-test', , message: "Test results summary: ${env.SUMMARY}")
+                            slackSend(channel: '#auto-test', message: "Nightly Stress test results summary: ${env.SUMMARY} <${env.BUILD_URL}|More details>")
                         }
-                        
                     }
                 }
             }
         }
         stage('Generate reports') {
             steps {
+                when {
+                    expression { currentBuild.result != 'FAILURE'}
+                }
                 script {
                     allure([
                             includeProperties: false,
@@ -78,8 +92,6 @@ pipeline {
     post('Close appium server and simulators') {
         always {
             archiveArtifacts artifacts: "${env.ARTIFACTS_FOLDER}/", onlyIfSuccessful: false
-            sh 'killall -KILL node'
-            sh 'killall "Simulator"'
         }
     }
 }

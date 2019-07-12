@@ -16,6 +16,10 @@ pipeline {
             label 'MacOSX'
         }
     }
+    options { 
+        timestamps()
+        timeout(time: 1, unit: 'HOURS') 
+    }
     environment {
         ARTIFACTS_FOLDER = "artifacts"
         TESTCASES_FOLDER = "./src/tests/freetime/testcases/"
@@ -37,6 +41,9 @@ pipeline {
         }
         stage('Build testing app') {
             steps {
+                when {
+                    expression { currentBuild.result != 'FAILURE'}
+                }
                 catchError {
                     sh 'xcodebuild clean build -workspace Freetime.xcworkspace -scheme "Freetime-AppCenter" \
                         -configuration Debug -allowProvisioningUpdates CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
@@ -50,6 +57,9 @@ pipeline {
         }
         stage('Run appium tests') {
             steps {
+                when {
+                    expression { currentBuild.result != 'FAILURE'}
+                }
                 catchError {
                     dir("${env.APPIUM_TESTS_FOLDER}") {
                         git url: 'git@github.com:sonnguyen-logigear/mwd-githawk-automation-python.git'
@@ -57,12 +67,17 @@ pipeline {
                         withCredentials([string(credentialsId: 'test_github_token', variable: 'PERSONAL_TOKEN')]) {
                             sh "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m smoke_test ${TESTCASES_FOLDER}"
                         }
+                        sh 'killall -KILL node'
+                        sh 'killall "Simulator"'
                     }
                 }
             }
         }
         stage('Generate reports') {
             steps {
+                when {
+                    expression { currentBuild.result != 'FAILURE'}
+                }
                 script {
                     allure([
                             includeProperties: false,
@@ -78,8 +93,6 @@ pipeline {
     post('Close appium server and simulators') {
         always {
             archiveArtifacts artifacts: "${env.ARTIFACTS_FOLDER}/", onlyIfSuccessful: false
-            sh 'killall -KILL node'
-            sh 'killall "Simulator"'
             emailext body: '${DEFAULT_CONTENT}',
             recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
             subject: '${DEFAULT_SUBJECT}'
