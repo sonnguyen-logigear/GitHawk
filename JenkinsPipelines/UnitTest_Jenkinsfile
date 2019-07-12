@@ -35,7 +35,7 @@ pipeline {
         }
         stage('Run unit tests') {
             when {
-                expression { currentBuild.result != 'FAILURE'}
+                expression { currentBuild.result != 'FAILURE' }
             }
             steps {
                 sh "rm -rf ${env.TEST_OUTPUT}"
@@ -46,9 +46,6 @@ pipeline {
             }
         }
         stage('Generate reports') {
-            when {
-                expression { currentBuild.result != 'FAILURE'}
-            }
             steps {
                 script {
                     allure([

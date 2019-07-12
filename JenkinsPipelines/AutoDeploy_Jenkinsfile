@@ -28,7 +28,7 @@ pipeline {
         }
         stage('Build and deploy Application') {
             when {
-                expression { currentBuild.result != 'FAILURE'}
+                expression { currentBuild.result != 'FAILURE' }
             }
             steps {
                 catchError {

@@ -39,7 +39,7 @@ pipeline {
         }
         stage('Build app') {
             when {
-                expression { currentBuild.result != 'FAILURE'}
+                expression { currentBuild.result != 'FAILURE' }
             }
             steps {
                 withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
