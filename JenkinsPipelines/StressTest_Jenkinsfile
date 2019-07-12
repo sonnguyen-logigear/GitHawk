@@ -6,8 +6,12 @@ pipeline {
             label 'MacOSX'
         }
     }
+    options { 
+        timestamps()
+        timeout(time: 7, unit: 'HOURS') 
+    }
     triggers {
-        cron('H 0 19 * * *')
+        cron('H 19 * * *')
     }
     environment {
         ARTIFACTS_FOLDER = "artifacts"
@@ -28,6 +32,9 @@ pipeline {
             }
         }
         stage('Build testing app') {
+            when {
+                expression { currentBuild.result != 'FAILURE' }
+            }
             steps {
                 catchError {
                     sh 'xcodebuild clean build -workspace Freetime.xcworkspace -scheme "Freetime-AppCenter" \
@@ -41,13 +48,25 @@ pipeline {
             }
         }
         stage('Run appium tests') {
+            when {
+                expression { currentBuild.result != 'FAILURE' }
+            }
             steps {
                 catchError {
                     dir("${env.APPIUM_TESTS_FOLDER}") {
                         git url: 'git@github.com:sonnguyen-logigear/mwd-githawk-automation-python.git'
+                        sh './src/setup.sh'
                         sh './src/tools/start_appium_server.sh ../$ARTIFACTS_FOLDER'
-                        withCredentials([string(credentialsId: 'test_github_token', variable: 'PERSONAL_TOKEN')]) {
-                            sh "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m stress_test ${TESTCASES_FOLDER}"
+                        script {
+                            withCredentials([string(credentialsId: 'test_github_token', variable: 'PERSONAL_TOKEN')]) {
+                                env.LOG = sh(returnStdout: true, 
+                                             script: "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m stress_test ${TESTCASES_FOLDER}")
+                            }
+                            sh 'killall -KILL node'
+                            sh 'killall "Simulator"'
+                            env.SUMMARY = sh(returnStdout: true, 
+                                          script: 'echo $LOG | grep -oiE "===[a-z1-9 \\.,]+===" | tail -1')
+                            slackSend(channel: '#auto-test', message: "Nightly Stress test results summary: ${env.SUMMARY} <${env.BUILD_URL}|More details>")
                         }
                     }
                 }
@@ -70,8 +89,6 @@ pipeline {
     post('Close appium server and simulators') {
         always {
             archiveArtifacts artifacts: "${env.ARTIFACTS_FOLDER}/", onlyIfSuccessful: false
-            sh 'killall -KILL node'
-            sh 'killall "Simulator"'
         }
     }
 }

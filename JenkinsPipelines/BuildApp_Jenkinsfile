@@ -16,6 +16,10 @@ pipeline {
             label 'MacOSX'
         }
     }
+    options { 
+        timestamps()
+        timeout(time: 1, unit: 'HOURS') 
+    }
     environment {
         LC_ALL = "en_US.UTF-8"
         LANG = "en_US.UTF-8"
@@ -34,18 +38,19 @@ pipeline {
             }
         }
         stage('Build app') {
+            when {
+                expression { currentBuild.result != 'FAILURE' }
+            }
             steps {
-                dir("${env.APP_FOLDER}") {
-                    withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
-                        sh "security unlock-keychain -p ${mac_password} login.keychain-db"
-                    }
-                    sh "fastlane build"
+                withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
+                    sh "security unlock-keychain -p ${mac_password} login.keychain-db"
                 }
+                sh "fastlane build"
             }
         }
     }
     post('Archive app') {
-        always {        
+        always {
             emailext body: '${DEFAULT_CONTENT}',
             recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
             subject: '${DEFAULT_SUBJECT}'
@@ -53,6 +58,7 @@ pipeline {
         success {
             archiveArtifacts artifacts: "${env.GYM_OUTPUT_DIRECTORY}/", onlyIfSuccessful: true
             setBuildStatus("Build succeeded", "SUCCESS")
+            
         }
         failure {
             setBuildStatus("Build failed", "FAILURE")
