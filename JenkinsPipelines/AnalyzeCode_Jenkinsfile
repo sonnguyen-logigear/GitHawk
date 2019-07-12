@@ -41,7 +41,8 @@ pipeline {
                         sh "security unlock-keychain -p ${mac_password} login.keychain-db"
                     }
                     sh "brew install swiftlint"
-                    sh "fastlane run swiftlint output_file:\\"${env.GYM_OUTPUT_DIRECTORY}/${env.ANALYZE_HTML_FILE}\\" reporter:\\"html\\""
+                    sh(script: "fastlane run swiftlint", args: [output_file:"${env.GYM_OUTPUT_DIRECTORY}/${env.ANALYZE_HTML_FILE}", reporter:"html"])
+                    //sh "fastlane run swiftlint output_file:\\"${env.GYM_OUTPUT_DIRECTORY}/${env.ANALYZE_HTML_FILE}\\" reporter:\\"html\\""
                 }
             }
         }
