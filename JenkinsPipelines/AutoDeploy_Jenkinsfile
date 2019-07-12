@@ -27,10 +27,10 @@ pipeline {
             }
         }
         stage('Build and deploy Application') {
+            when {
+                expression { currentBuild.result != 'FAILURE'}
+            }
             steps {
-                when {
-                    expression { currentBuild.result != 'FAILURE'}
-                }
                 catchError {
                     withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
                         sh "security unlock-keychain -p ${mac_password} login.keychain-db"

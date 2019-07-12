@@ -34,10 +34,10 @@ pipeline {
             }
         }
         stage('Run unit tests') {
+            when {
+                expression { currentBuild.result != 'FAILURE'}
+            }
             steps {
-                when {
-                    expression { currentBuild.result != 'FAILURE'}
-                }
                 sh "rm -rf ${env.TEST_OUTPUT}"
                 catchError {
                     sh "fastlane test"
@@ -46,10 +46,10 @@ pipeline {
             }
         }
         stage('Generate reports') {
+            when {
+                expression { currentBuild.result != 'FAILURE'}
+            }
             steps {
-                when {
-                    expression { currentBuild.result != 'FAILURE'}
-                }
                 script {
                     allure([
                         includeProperties: false,
