@@ -30,7 +30,9 @@ pipeline {
                     }
                     script {
                         if (env.BRANCH_NAME == 'master') {
+                            slackSend(channel: '#auto-deploy', color: 'good', message: 'Start deploying new app version to App Store')
                             sh 'fastlane publish'
+                            slackSend(channel: '#auto-deploy', color: 'good', message: 'Application is uploaded to App Store successfully')
                         } else {
                             withCredentials([string(credentialsId: 'crashlytics_api_token', 
                                                     variable: 'CRASHLYTICS_API_TOKEN'),
@@ -38,7 +40,9 @@ pipeline {
                                                     variable: 'CRASHLYTICS_BUILD_SECRET'),
                                              string(credentialsId: 'github_match_password', 
                                                     variable: 'MATCH_PASSWORD')]) {
+                                slackSend(channel: '#auto-deploy', color: 'good', message: 'Start distributing new app to Fabric beta')
                                 sh "fastlane beta"
+                                slackSend(channel: '#auto-deploy', color: 'good', message: 'Application is uploaded to Fabric beta successfully')
                             }
                         }
                     }
@@ -49,6 +53,9 @@ pipeline {
     post('Archive necessary artifact') {
         always {
             archiveArtifacts artifacts: "${env.GYM_OUTPUT_DIRECTORY}/", onlyIfSuccessful: true
+        }
+        failure {
+            slackSend(channel: '#auto-deploy', color: 'danger', message: "Failed to deploy app. Result is at: ${env.BUILD_URL}")
         }
     }
 }

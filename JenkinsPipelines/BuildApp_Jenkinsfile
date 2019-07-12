@@ -45,9 +45,15 @@ pipeline {
         }
     }
     post('Archive app') {
+        always {
+            emailext body: '${DEFAULT_CONTENT}',
+            recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
+            subject: '${DEFAULT_SUBJECT}'
+        }
         success {
             archiveArtifacts artifacts: "${env.GYM_OUTPUT_DIRECTORY}/", onlyIfSuccessful: true
             setBuildStatus("Build succeeded", "SUCCESS")
+            
         }
         failure {
             setBuildStatus("Build failed", "FAILURE")

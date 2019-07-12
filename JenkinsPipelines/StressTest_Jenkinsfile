@@ -45,10 +45,18 @@ pipeline {
                 catchError {
                     dir("${env.APPIUM_TESTS_FOLDER}") {
                         git url: 'git@github.com:sonnguyen-logigear/mwd-githawk-automation-python.git'
+                        sh './src/setup.sh'
                         sh './src/tools/start_appium_server.sh ../$ARTIFACTS_FOLDER'
-                        withCredentials([string(credentialsId: 'test_github_token', variable: 'PERSONAL_TOKEN')]) {
-                            sh "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m stress_test ${TESTCASES_FOLDER}"
+                        script {
+                            withCredentials([string(credentialsId: 'test_github_token', variable: 'PERSONAL_TOKEN')]) {
+                                env.LOG = sh(returnStdout: true, 
+                                             script: "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m stress_test ${TESTCASES_FOLDER}")
+                            }
+                            env.SUMMARY = sh(returnStdout: true, 
+                                          script: 'echo $LOG | grep -oiE "===[a-z1-9 \\.,]+===" | tail -1')
+                            slackSend(channel: '#auto-test', , message: "Test results summary: ${env.SUMMARY}")
                         }
+                        
                     }
                 }
             }

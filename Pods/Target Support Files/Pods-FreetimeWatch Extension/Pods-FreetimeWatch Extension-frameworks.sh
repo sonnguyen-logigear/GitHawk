@@ -160,6 +160,14 @@ if [[ "$CONFIGURATION" == "Debug" ]]; then
   install_framework "${BUILT_PRODUCTS_DIR}/GitHubSession-watchOS/GitHubSession.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/StringHelpers-watchOS/StringHelpers.framework"
 fi
+if [[ "$CONFIGURATION" == "Development" ]]; then
+  install_framework "${BUILT_PRODUCTS_DIR}/Alamofire-watchOS/Alamofire.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/Apollo-watchOS/Apollo.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/DateAgo-watchOS/DateAgo.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/GitHubAPI-watchOS/GitHubAPI.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/GitHubSession-watchOS/GitHubSession.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/StringHelpers-watchOS/StringHelpers.framework"
+fi
 if [[ "$CONFIGURATION" == "Release" ]]; then
   install_framework "${BUILT_PRODUCTS_DIR}/Alamofire-watchOS/Alamofire.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/Apollo-watchOS/Apollo.framework"
@@ -168,7 +176,23 @@ if [[ "$CONFIGURATION" == "Release" ]]; then
   install_framework "${BUILT_PRODUCTS_DIR}/GitHubSession-watchOS/GitHubSession.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/StringHelpers-watchOS/StringHelpers.framework"
 fi
+if [[ "$CONFIGURATION" == "AppStore" ]]; then
+  install_framework "${BUILT_PRODUCTS_DIR}/Alamofire-watchOS/Alamofire.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/Apollo-watchOS/Apollo.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/DateAgo-watchOS/DateAgo.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/GitHubAPI-watchOS/GitHubAPI.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/GitHubSession-watchOS/GitHubSession.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/StringHelpers-watchOS/StringHelpers.framework"
+fi
 if [[ "$CONFIGURATION" == "TestFlight" ]]; then
+  install_framework "${BUILT_PRODUCTS_DIR}/Alamofire-watchOS/Alamofire.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/Apollo-watchOS/Apollo.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/DateAgo-watchOS/DateAgo.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/GitHubAPI-watchOS/GitHubAPI.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/GitHubSession-watchOS/GitHubSession.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/StringHelpers-watchOS/StringHelpers.framework"
+fi
+if [[ "$CONFIGURATION" == "AdHoc" ]]; then
   install_framework "${BUILT_PRODUCTS_DIR}/Alamofire-watchOS/Alamofire.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/Apollo-watchOS/Apollo.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/DateAgo-watchOS/DateAgo.framework"

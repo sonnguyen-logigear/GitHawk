@@ -80,6 +80,9 @@ pipeline {
             archiveArtifacts artifacts: "${env.ARTIFACTS_FOLDER}/", onlyIfSuccessful: false
             sh 'killall -KILL node'
             sh 'killall "Simulator"'
+            emailext body: '${DEFAULT_CONTENT}',
+            recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
+            subject: '${DEFAULT_SUBJECT}'
         }
         success {
             setBuildStatus("Build succeeded", "SUCCESS")
