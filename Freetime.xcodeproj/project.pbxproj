@@ -4003,7 +4003,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.mowede.githawk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE = "";
-				PROVISIONING_PROFILE_SPECIFIER = "match AppStore com.mowede.githawk";
+				PROVISIONING_PROFILE_SPECIFIER = "match AdHoc com.mowede.githawk";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = TESTFLIGHT;
 				SWIFT_OBJC_BRIDGING_HEADER = "Resources/Freetime-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
