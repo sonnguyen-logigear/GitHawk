@@ -6,6 +6,10 @@ pipeline {
             label 'MacOSX'
         }
     }
+    options { 
+        timestamps()
+        timeout(time: 2, unit: 'HOURS') 
+    }
     environment {
         LC_ALL = "en_US.UTF-8"
         LANG = "en_US.UTF-8"
@@ -23,6 +27,9 @@ pipeline {
             }
         }
         stage('Build and deploy Application') {
+            when {
+                expression { currentBuild.result != 'FAILURE' }
+            }
             steps {
                 catchError {
                     withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
@@ -30,7 +37,11 @@ pipeline {
                     }
                     script {
                         if (env.BRANCH_NAME == 'master') {
+                            slackSend(channel: '#auto-deploy', color: 'good', 
+                                        message: 'Start deploying new app version to App Store')
                             sh 'fastlane publish'
+                            slackSend(channel: '#auto-deploy', color: 'good', 
+                                        message: 'Application is uploaded to App Store successfully')
                         } else {
                             withCredentials([string(credentialsId: 'crashlytics_api_token', 
                                                     variable: 'CRASHLYTICS_API_TOKEN'),
@@ -38,7 +49,11 @@ pipeline {
                                                     variable: 'CRASHLYTICS_BUILD_SECRET'),
                                              string(credentialsId: 'github_match_password', 
                                                     variable: 'MATCH_PASSWORD')]) {
+                                slackSend(channel: '#auto-deploy', color: 'good', 
+                                            message: 'Start distributing new app to Fabric beta')
                                 sh "fastlane beta"
+                                slackSend(channel: '#auto-deploy', color: 'good', 
+                                            message: 'Application is uploaded to Fabric beta successfully')
                             }
                         }
                     }
@@ -49,6 +64,10 @@ pipeline {
     post('Archive necessary artifact') {
         always {
             archiveArtifacts artifacts: "${env.GYM_OUTPUT_DIRECTORY}/", onlyIfSuccessful: true
+        }
+        failure {
+            slackSend(channel: '#auto-deploy', color: 'danger', 
+                        message: "Failed to deploy app. <${env.BUILD_URL}|More details>")
         }
     }
 }
