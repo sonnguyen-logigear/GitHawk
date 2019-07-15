@@ -54,7 +54,7 @@ pipeline {
             steps {
                 catchError {
                     dir("${env.APPIUM_TESTS_FOLDER}") {
-                        git url: 'git@github.com:sonnguyen-logigear/mwd-githawk-automation-python.git'
+                        git url: 'https://github.com/sonnguyen-logigear/mwd-githawk-automation-python.git'
                         sh './src/setup.sh'
                         sh './src/tools/start_appium_server.sh ../$ARTIFACTS_FOLDER'
                         script {
