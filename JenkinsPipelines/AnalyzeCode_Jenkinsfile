@@ -13,15 +13,18 @@ void setAnalyzeStatus(String message, String state) {
 pipeline {
     agent {
         node {
-            label 'MacOSX'
+            label 'SonNguyen_Mac'
         }
     }
     environment {
         LC_ALL = "en_US.UTF-8"
         LANG = "en_US.UTF-8"
         LANGUAGE = "en_US.UTF-8"
-        GYM_OUTPUT_DIRECTORY = "artifacts"
-        ANALYZE_HTML_FILE = "analyze-code.html"
+        ARTIFACTS_FOLDER = "artifacts"
+        IPA_FILE = "Freetime.ipa"
+        IPA_FILE_PATH = "${env.ARTIFACTS_FOLDER}/${env.IPA_FILE}"
+        ANALYZE_HTML_FILE_NAME = "analyze-code.html"
+        ANALYZE_HTML_FILE_PATH = "${env.ARTIFACTS_FOLDER}/${env.ANALYZE_HTML_FILE_NAME}"
     }
     stages {
         stage('Setup project') {
@@ -31,29 +34,53 @@ pipeline {
                     sh "bundle"
                     sh "bundle exec pod install"
                     sh "npm install"  
-                }          
+                }
+                sh "mkdir -p $ARTIFACTS_FOLDER"
             }
         }
         stage('Analyze code') {
+            steps {
+                withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
+                    sh "security unlock-keychain -p ${mac_password} login.keychain-db"
+                }
+                sh "brew install swiftlint"
+                //sh(script: "fastlane run swiftlint", args: [output_file:"${env.GYM_OUTPUT_DIRECTORY}/${env.ANALYZE_HTML_FILE}", reporter:"html"])
+                sh "fastlane run swiftlint output_file:${env.ANALYZE_HTML_FILE_PATH} reporter:html"
+            }
+        }
+        stage('Build app') {
             steps {
                 dir("${env.APP_FOLDER}") {
                     withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
                         sh "security unlock-keychain -p ${mac_password} login.keychain-db"
                     }
-                    sh "brew install swiftlint"
-                    sh(script: "fastlane run swiftlint", args: [output_file:"${env.GYM_OUTPUT_DIRECTORY}/${env.ANALYZE_HTML_FILE}", reporter:"html"])
-                    //sh "fastlane run swiftlint output_file:\\"${env.GYM_OUTPUT_DIRECTORY}/${env.ANALYZE_HTML_FILE}\\" reporter:\\"html\\""
+                    sh "fastlane build"
                 }
             }
         }
+        stage('Analyze libs') {
+            steps {
+                sh "curl -F 'file=@${env.IPA_FILE_PATH}' http://192.168.188.31:8000/api/v1/upload -H 'Authorization:cdd864e0e306bef15b7e1d9765ebb2b03314e44f2434368b7afb37fdd93c431c'"
+            }
+        }
     }
-    post('Archive app') {
+    post('Update analyze result') {
         success {
-            archiveArtifacts artifacts: "${env.GYM_OUTPUT_DIRECTORY}/", onlyIfSuccessful: true
-            setAnalyzeStatus("Build succeeded", "SUCCESS")
+            archiveArtifacts artifacts: "${env.ARTIFACTS_FOLDER}/", onlyIfSuccessful: false
+            script {
+                publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: "${env.ARTIFACTS_FOLDER}",
+                    reportFiles: "${env.ANALYZE_HTML_FILE_NAME}",
+                    reportName: 'Analyze Result'
+                ])
+                }
+            setAnalyzeStatus("Analyze succeeded", "SUCCESS")
         }
         failure {
-            setAnalyzeStatus("Build failed", "FAILURE")
+            setAnalyzeStatus("Analyze failed", "FAILURE")
         }
     }
 }
