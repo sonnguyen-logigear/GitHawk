@@ -19,6 +19,7 @@ pipeline {
         APPIUM_TESTS_FOLDER = "appium_tests"
         ALLURE_REPORT_FOLDER = "allure-results"
         BUILD_LOG = "${ARTIFACTS_FOLDER}/xcodebuild.log"
+        PYTEST_LOG = "pytest.log"
     }
     stages {
         stage('Setup project') {
@@ -54,19 +55,14 @@ pipeline {
             steps {
                 catchError {
                     dir("${env.APPIUM_TESTS_FOLDER}") {
-                        git url: 'https://github.com/sonnguyen-logigear/mwd-githawk-automation-python.git'
+                        git url: 'https://github.com/sonnguyen-logigear/mwd-githawk-automation-python.git',
+                            credentialsId: '9680cfda-9ec1-4665-93e2-e5dee9e657b1'
                         sh './src/setup.sh'
                         sh './src/tools/start_appium_server.sh ../$ARTIFACTS_FOLDER'
                         script {
                             withCredentials([string(credentialsId: 'test_github_token', variable: 'PERSONAL_TOKEN')]) {
-                                env.LOG = sh(returnStdout: true, 
-                                             script: "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m stress_test ${TESTCASES_FOLDER}")
-                            }
-                            sh 'killall -KILL node'
-                            sh 'killall "Simulator"'
-                            env.SUMMARY = sh(returnStdout: true, 
-                                          script: 'echo $LOG | grep -oiE "===[a-z1-9 \\.,]+===" | tail -1')
-                            slackSend(channel: '#auto-test', message: "Nightly Stress test results summary: ${env.SUMMARY} <${env.BUILD_URL}|More details>")
+                                sh "python3 -m pytest --alluredir $ALLURE_REPORT_FOLDER -v -m stress_test $TESTCASES_FOLDER | tee $PYTEST_LOG ; ( exit \${PIPESTATUS[0]} )"  
+                            }                           
                         }
                     }
                 }
@@ -89,6 +85,20 @@ pipeline {
     post('Close appium server and simulators') {
         always {
             archiveArtifacts artifacts: "${env.ARTIFACTS_FOLDER}/", onlyIfSuccessful: false
+            sh 'killall -KILL node | true'
+            sh 'killall "Simulator" | true'
+            script {
+                env.SUMMARY = sh(returnStdout: true, 
+                                script: "grep -oiE '[a-z0-9 \\.,]+seconds' $APPIUM_TESTS_FOLDER/$PYTEST_LOG | tail -1")
+            }
+        }
+        success {
+            slackSend(channel: '#auto-test', color: "good", 
+                      message: "Nightly Stress test passed: ${env.SUMMARY} <${env.BUILD_URL}|More details>")
+        }
+        failure {
+            slackSend(channel: '#auto-test', color: "danger", 
+                      message: "Nightly Stress test failed: ${env.SUMMARY} <${env.BUILD_URL}|More details>")
         }
     }
 }

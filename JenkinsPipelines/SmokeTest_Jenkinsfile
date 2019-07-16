@@ -67,8 +67,6 @@ pipeline {
                         withCredentials([string(credentialsId: 'test_github_token', variable: 'PERSONAL_TOKEN')]) {
                             sh "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m smoke_test ${TESTCASES_FOLDER}"
                         }
-                        sh 'killall -KILL node'
-                        sh 'killall "Simulator"'
                     }
                 }
             }
@@ -93,6 +91,8 @@ pipeline {
             emailext body: '${DEFAULT_CONTENT}',
             recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
             subject: '${DEFAULT_SUBJECT}'
+            sh 'killall -KILL node | true'
+            sh 'killall "Simulator" | true'
         }
         success {
             setBuildStatus("Build succeeded", "SUCCESS")
