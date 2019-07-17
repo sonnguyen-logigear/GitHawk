@@ -1,0 +1,95 @@
+#!/usr/bin/env groovy
+
+void setAnalyzeStatus(String message, String state) {
+  step([
+      $class: "GitHubCommitStatusSetter",
+      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/sonnguyen-logigear/GitHawk"],
+      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/analyze-code"],
+      errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
+      statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
+  ]);
+}
+
+pipeline {
+    agent {
+        node {
+            label 'SonNguyen_Mac'
+        }
+    }
+    environment {
+        LC_ALL = "en_US.UTF-8"
+        LANG = "en_US.UTF-8"
+        LANGUAGE = "en_US.UTF-8"
+        ARTIFACTS_FOLDER = "artifacts"
+        IPA_FILE = "Freetime.ipa"
+        IPA_FILE_PATH = "./${env.IPA_FILE}"
+        ANALYZE_HTML_FILE_NAME = "analyze-code.html"
+        ANALYZE_HTML_FILE_PATH = "${env.ARTIFACTS_FOLDER}/${env.ANALYZE_HTML_FILE_NAME}"
+        ANALYZE_SERVER = "http://192.168.188.31:8000"
+        ANALYZE_VIEW_LINK = "${env.ANALYZE_SERVER}/StaticAnalyzer_iOS/?name=Freetime.ipa&type=ipa&checksum="
+        ANALYZE_UPLOAD_LINK = "${env.ANALYZE_SERVER}/api/v1/upload"
+        ANALYZE_TOKEN = "cdd864e0e306bef15b7e1d9765ebb2b03314e44f2434368b7afb37fdd93c431c"
+    }
+    stages {
+        stage('Setup project') {
+            steps {
+                setAnalyzeStatus("In progress...", "PENDING")
+                catchError {
+                    sh "bundle"
+                    sh "bundle exec pod install"
+                    sh "npm install"  
+                }
+                sh "mkdir -p $ARTIFACTS_FOLDER"
+            }
+        }
+        stage('Build app') {
+            when {
+                expression { currentBuild.result != 'FAILURE' }
+            }
+            steps {
+                withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
+                    sh "security unlock-keychain -p ${mac_password} login.keychain-db"
+                }
+                sh "fastlane build"
+            }
+        }
+        stage('Analyze code') {
+            steps {
+                withCredentials([string(credentialsId: "${MAC_PASSWORD}", variable: 'mac_password')]) {
+                    sh "security unlock-keychain -p ${mac_password} login.keychain-db"
+                }
+                sh "brew install swiftlint"
+                sh "fastlane run swiftlint output_file:${env.ANALYZE_HTML_FILE_PATH} reporter:html"
+            }
+        }
+        
+        stage('Analyze libs') {
+            steps {
+                script{
+                    def analyzeData = sh(returnStdout: true, script: "curl -F 'file=@${env.IPA_FILE_PATH}' ${env.ANALYZE_UPLOAD_LINK} -H 'Authorization:${env.ANALYZE_TOKEN}'").trim()
+                    def jsonData = readJSON text: analyzeData
+                    createSummary icon:'go-next.png', text: "<a href=${env.ANALYZE_VIEW_LINK}${jsonData['hash']}>Analyze Dependency Libs Result</a>"
+                }
+            }
+        }
+    }
+    post('Update analyze result') {
+        success {
+            archiveArtifacts artifacts: "${env.ARTIFACTS_FOLDER}/", onlyIfSuccessful: false
+            script {
+                publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: "${env.ARTIFACTS_FOLDER}",
+                    reportFiles: "${env.ANALYZE_HTML_FILE_NAME}",
+                    reportName: 'Analyze Source Code Result'
+                ])
+                }
+            setAnalyzeStatus("Analyze succeeded", "SUCCESS")
+        }
+        failure {
+            setAnalyzeStatus("Analyze failed", "FAILURE")
+        }
+    }
+}
