@@ -1,0 +1,105 @@
+#!/usr/bin/env groovy
+
+void setBuildStatus(String message, String state) {
+  step([
+      $class: "GitHubCommitStatusSetter",
+      reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/sonnguyen-logigear/GitHawk"],
+      contextSource: [$class: "ManuallyEnteredCommitContextSource", context: "ci/jenkins/security-test"],
+      errorHandlers: [[$class: "ChangingBuildStatusErrorHandler", result: "UNSTABLE"]],
+      statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
+  ]);
+}
+
+pipeline {
+    agent {
+        node {
+            label 'MacOSX'
+        }
+    }
+    options { 
+        timestamps()
+        timeout(time: 1, unit: 'HOURS') 
+    }
+    environment {
+        ARTIFACTS_FOLDER = "artifacts"
+        TESTCASES_FOLDER = "./src/tests/freetime/testcases/"
+        APPIUM_TESTS_FOLDER = "appium_tests"
+        ALLURE_REPORT_FOLDER = "allure-results"
+        BUILD_LOG = "${ARTIFACTS_FOLDER}/xcodebuild.log"
+    }
+    stages {
+        stage('Setup project') {
+            steps {
+                setBuildStatus("In progress...", "PENDING")
+                catchError {
+                    sh "bundle"
+                    sh "bundle exec pod install"
+                    sh "npm install"  
+                } 
+                sh "mkdir -p $ARTIFACTS_FOLDER"      
+            }
+        }
+        stage('Build testing app') {
+            when {
+                expression { currentBuild.result != 'FAILURE' }
+            }
+            steps {
+                catchError {
+                    sh 'xcodebuild clean build -workspace Freetime.xcworkspace -scheme "Freetime-AppCenter" \
+                        -configuration Debug -allowProvisioningUpdates CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
+                        CODE_SIGN_ENTITLEMENTS="" CODE_SIGNING_ALLOWED="NO" -destination name="iPhone 6" > $BUILD_LOG'
+                    script {
+                        env.APP_PATH = sh(returnStdout: true, 
+                            script: 'grep -m 1 "Freetime.app" $BUILD_LOG | grep -oEi "\\/.*.app"').trim()
+                    }
+                }
+            }
+        }
+        stage('Run appium tests') {
+            when {
+                expression { currentBuild.result != 'FAILURE' }
+            }
+            steps {
+                catchError {
+                    dir("${env.APPIUM_TESTS_FOLDER}") {
+                        git url: 'git@github.com:sonnguyen-logigear/mwd-githawk-automation-python.git'
+                        sh './src/tools/start_appium_server.sh ../$ARTIFACTS_FOLDER'
+                        withCredentials([string(credentialsId: 'test_github_token', variable: 'PERSONAL_TOKEN')]) {
+                            sh "python3 -m pytest --alluredir ${env.ALLURE_REPORT_FOLDER} -v -m stress_test ${TESTCASES_FOLDER}"
+                        }
+                        sh 'killall -KILL node'
+                        sh 'killall "Simulator"'
+                    }
+                }
+            }
+        }
+        stage('Generate reports') {
+            steps {
+                script {
+                    allure([
+                            includeProperties: false,
+                            jdk: '',
+                            properties: [],
+                            reportBuildPolicy: 'ALWAYS',
+                            results: [[path: "${env.APPIUM_TESTS_FOLDER}/${env.ALLURE_REPORT_FOLDER}"]]
+                    ])
+                }
+            }
+        }
+    }
+    post('Close appium server and simulators') {
+        always {
+            archiveArtifacts artifacts: "${env.ARTIFACTS_FOLDER}/", onlyIfSuccessful: false
+            emailext body: '${DEFAULT_CONTENT}',
+            recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']],
+            subject: '${DEFAULT_SUBJECT}'
+        }
+        success {
+            setBuildStatus("Build succeeded", "SUCCESS")
+        }
+        failure {
+            setBuildStatus("Build failed", "FAILURE")
+        }
+    }
+}
+
